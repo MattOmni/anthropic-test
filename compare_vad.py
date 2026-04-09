@@ -281,6 +281,60 @@ def plot_comparison(
 # Entry point
 # ---------------------------------------------------------------------------
 
+def save_stats_json(
+    results: Dict[str, Tuple[np.ndarray, np.ndarray]],
+    audio_duration: float,
+    output_path: str,
+) -> None:
+    """Serialise comparison statistics to JSON for the HTML report generator."""
+    import json
+
+    valid = {k: v for k, v in results.items() if len(v[0]) > 0}
+    stats: dict = {"duration_s": round(audio_duration, 2), "models": {}}
+
+    if not valid:
+        with open(output_path, "w") as fh:
+            json.dump(stats, fh, indent=2)
+        return
+
+    all_times = [v[0] for v in valid.values()]
+    t_lo = max(t[0]  for t in all_times)
+    t_hi = min(t[-1] for t in all_times)
+    n_pts = max(2, int((t_hi - t_lo) * 1000))
+    t_grid = np.linspace(t_lo, t_hi, n_pts)
+
+    decisions: Dict[str, np.ndarray] = {}
+    for name, (times, probs) in valid.items():
+        interp = np.interp(t_grid, times, probs)
+        decisions[name] = interp >= THRESHOLD
+        speech_pct = float(np.mean(interp >= THRESHOLD)) * 100
+        stats["models"][name] = {
+            "speech_pct": round(speech_pct, 1),
+            "silence_pct": round(100 - speech_pct, 1),
+            "frame_ms": round((valid[name][0][1] - valid[name][0][0]) * 1000, 1)
+                        if len(valid[name][0]) > 1 else 0,
+        }
+
+    agreement: dict = {}
+    names = list(decisions.keys())
+    for ni in names:
+        agreement[ni] = {}
+        for nj in names:
+            agreement[ni][nj] = round(
+                float(np.mean(decisions[ni] == decisions[nj])) * 100, 1
+            )
+    stats["agreement"] = agreement
+
+    if len(names) > 1:
+        all_arr = np.stack(list(decisions.values()), axis=0)
+        stats["unanimous_speech_pct"]  = round(float(np.mean(all_arr.all(axis=0)))  * 100, 1)
+        stats["unanimous_silence_pct"] = round(float(np.mean(~all_arr.any(axis=0))) * 100, 1)
+
+    with open(output_path, "w") as fh:
+        json.dump(stats, fh, indent=2)
+    print(f"Stats saved → {output_path}")
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Compare Silero, WebRTC, and TEN VAD on an audio file.",
@@ -296,6 +350,13 @@ def parse_args() -> argparse.Namespace:
         "--output", "-o",
         default="comparison.png",
         help="Output plot filename (default: comparison.png)",
+    )
+    p.add_argument(
+        "--results-dir",
+        default=None,
+        metavar="DIR",
+        help="Write comparison.png + stats.json to this directory "
+             "(overrides --output; created if absent)",
     )
     p.add_argument(
         "--max-duration", "-d",
@@ -323,6 +384,15 @@ def main() -> None:
             "Run   python download_sample.py   to fetch a LibriVox chapter."
         )
 
+    # Resolve output paths
+    if args.results_dir:
+        os.makedirs(args.results_dir, exist_ok=True)
+        png_path  = os.path.join(args.results_dir, "comparison.png")
+        json_path = os.path.join(args.results_dir, "stats.json")
+    else:
+        png_path  = args.output
+        json_path = None
+
     audio = load_audio(args.audio_file, max_duration=args.max_duration)
 
     print("\nLoading VAD models …")
@@ -335,7 +405,10 @@ def main() -> None:
 
     print_stats(results)
 
-    plot_comparison(audio, results, args.output)
+    plot_comparison(audio, results, png_path)
+
+    if json_path:
+        save_stats_json(results, len(audio) / SAMPLE_RATE, json_path)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,58 @@
+name: Run Analysis Job
+
+# Triggered only when jobs/latest.json is pushed — not on every commit.
+on:
+  push:
+    paths:
+      - "jobs/latest.json"
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to push results back to the repo
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── Python ────────────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── Pip cache (torch etc. are large — cache saves ~5 min) ─────────
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # ── System deps ───────────────────────────────────────────────────
+      - name: Install ffmpeg (needed by librosa for MP3)
+        run: sudo apt-get install -y --no-install-recommends ffmpeg
+
+      # ── Python deps ───────────────────────────────────────────────────
+      - name: Install Python dependencies
+        run: pip install --upgrade pip && pip install -r requirements.txt gdown
+
+      # ── Run the job ───────────────────────────────────────────────────
+      - name: Run analysis
+        id: run_job
+        run: python scripts/run_job.py
+
+      # ── Commit results back to main ───────────────────────────────────
+      - name: Commit and push results
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "results: ${JOB_ID:-$(date +%Y%m%d-%H%M%S)}"
+          git push

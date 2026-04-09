@@ -9,3 +9,4 @@ librosa
 soundfile
 requests
 tqdm
+gdown
