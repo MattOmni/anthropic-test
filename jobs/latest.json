@@ -1,8 +1,7 @@
 {
-  "_comment": "This file is overwritten by Claude Code each time a new job is submitted.",
-  "job_id": "placeholder",
+  "job_id": "20260409-110000",
   "task": "vad",
-  "file_url": "",
-  "max_duration": null,
-  "submitted_at": ""
+  "file_url": "https://drive.google.com/file/d/10DO4jVRt0_6KlwyC97NcojNuGlGsH35s/view?usp=drivesdk",
+  "max_duration": 120,
+  "submitted_at": "2026-04-09T11:00:00Z"
 }
