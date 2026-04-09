@@ -123,14 +123,21 @@ def build_result_page(results_dir: Path) -> str:
     if chart_path.exists():
         chart_tag = f'<img class="chart" src="{_b64_img(str(chart_path))}" alt="VAD Comparison Chart">'
 
-    # Task-specific labels (vad vs breath)
-    is_breath = stats.get("task") == "breath"
-    col1_label = "Breath"    if is_breath else "Speech"
-    col2_label = "Non-Breath" if is_breath else "Silence"
-    col1_key   = "breath_pct"    if is_breath else "speech_pct"
-    col2_key   = "nonbreath_pct" if is_breath else "silence_pct"
-    col1_css   = "speech"  # reuse green for first column
-    col2_css   = "silence"
+    # Task-specific labels (vad / breath / pops)
+    task_type  = stats.get("task", task)
+    is_breath  = task_type == "breath"
+    is_pops    = task_type == "pops"
+    if is_pops:
+        col1_label, col2_label = "Transient", "Clean"
+        col1_key,   col2_key   = "transient_pct", "clean_pct"
+    elif is_breath:
+        col1_label, col2_label = "Breath", "Non-Breath"
+        col1_key,   col2_key   = "breath_pct", "nonbreath_pct"
+    else:
+        col1_label, col2_label = "Speech", "Silence"
+        col1_key,   col2_key   = "speech_pct", "silence_pct"
+    col1_css = "speech"   # reuse green styling for the "active" column
+    col2_css = "silence"
 
     # Stats table rows
     model_rows = ""
@@ -159,17 +166,23 @@ def build_result_page(results_dir: Path) -> str:
                 cells += f'<td class="{css}">{_fmt_pct(val)}</td>'
             agree_rows += f"<tr><td>{ni}</td>{cells}</tr>\n"
 
-    unan_speech  = stats.get("unanimous_breath_pct",    stats.get("unanimous_speech_pct",  "—"))
-    unan_silence = stats.get("unanimous_nonbreath_pct", stats.get("unanimous_silence_pct", "—"))
+    unan_speech  = stats.get(
+        "unanimous_transient_pct",
+        stats.get("unanimous_breath_pct", stats.get("unanimous_speech_pct", "—")),
+    )
+    unan_silence = stats.get(
+        "unanimous_clean_pct",
+        stats.get("unanimous_nonbreath_pct", stats.get("unanimous_silence_pct", "—")),
+    )
 
-    page_title   = "Breathing Detector" if is_breath else "VAD"
+    page_title   = "Pop/Click Detector" if is_pops else ("Breathing Detector" if is_breath else "VAD")
     table_header = (
         f"<tr><th>Detector</th><th>{col1_label}</th><th>{col2_label}</th><th>Frame</th></tr>"
         if is_breath else
         f"<tr><th>Model</th><th>{col1_label}</th><th>{col2_label}</th><th>Frame</th></tr>"
     )
-    unan_label1 = "breath"    if is_breath else "speech"
-    unan_label2 = "non-breath" if is_breath else "silence"
+    unan_label1 = "transient" if is_pops else ("breath"    if is_breath else "speech")
+    unan_label2 = "clean"     if is_pops else ("non-breath" if is_breath else "silence")
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
