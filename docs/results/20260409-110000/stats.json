@@ -1,0 +1,27 @@
+{
+  "duration_s": 120.0,
+  "models": {
+    "Silero VAD": {
+      "speech_pct": 80.6,
+      "silence_pct": 19.4,
+      "frame_ms": 32.0
+    },
+    "WebRTC VAD (mode 3)": {
+      "speech_pct": 80.0,
+      "silence_pct": 20.0,
+      "frame_ms": 30.0
+    }
+  },
+  "agreement": {
+    "Silero VAD": {
+      "Silero VAD": 100.0,
+      "WebRTC VAD (mode 3)": 98.4
+    },
+    "WebRTC VAD (mode 3)": {
+      "Silero VAD": 98.4,
+      "WebRTC VAD (mode 3)": 100.0
+    }
+  },
+  "unanimous_speech_pct": 79.5,
+  "unanimous_silence_pct": 18.9
+}
