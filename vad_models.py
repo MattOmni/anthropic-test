@@ -171,16 +171,9 @@ class TenVAD:
 
         def _call(frame: np.ndarray) -> float:
             result = raw(frame)
-            # Possible return shapes:
-            #   float / int        → speech probability or binary flag
-            #   (bool, float)      → (is_speech, confidence)
-            #   (float, ...)       → probability first
+            # TenVad.process() returns (probability: float, flag: int32).
+            # Always take index 0 (probability), never index 1 (binary flag).
             if isinstance(result, (list, tuple)):
-                # Prefer the second element if it looks like a probability
-                if len(result) >= 2:
-                    candidate = float(result[1])
-                    if 0.0 <= candidate <= 1.0:
-                        return candidate
                 return float(result[0])
             return float(result)
 

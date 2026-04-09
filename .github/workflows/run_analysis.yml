@@ -38,12 +38,16 @@ jobs:
             ${{ runner.os }}-pip-
 
       # ── System deps ───────────────────────────────────────────────────
-      - name: Install ffmpeg (needed by librosa for MP3)
-        run: sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Install system dependencies
+        run: sudo apt-get install -y --no-install-recommends ffmpeg libc++1
 
       # ── Python deps ───────────────────────────────────────────────────
       - name: Install Python dependencies
-        run: pip install --upgrade pip && pip install -r requirements.txt gdown
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          # ten-vad must be installed from GitHub (not PyPI)
+          pip install -U git+https://github.com/TEN-framework/ten-vad.git
 
       # ── Run the job ───────────────────────────────────────────────────
       - name: Run analysis

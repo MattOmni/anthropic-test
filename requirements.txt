@@ -1,7 +1,6 @@
 torch
 silero-vad
 webrtcvad-wheels
-ten-vad
 numpy
 matplotlib
 scipy
