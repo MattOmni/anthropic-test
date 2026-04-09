@@ -1,0 +1,40 @@
+{
+  "task": "breath",
+  "duration_s": 120.0,
+  "models": {
+    "Respiro-en": {
+      "breath_pct": 19.4,
+      "nonbreath_pct": 80.6,
+      "frame_ms": 10.0
+    },
+    "Spectral Breath Detector": {
+      "breath_pct": 2.1,
+      "nonbreath_pct": 97.9,
+      "frame_ms": 10.0
+    },
+    "Energy + ZCR Detector": {
+      "breath_pct": 13.2,
+      "nonbreath_pct": 86.8,
+      "frame_ms": 10.0
+    }
+  },
+  "agreement": {
+    "Respiro-en": {
+      "Respiro-en": 100.0,
+      "Spectral Breath Detector": 78.5,
+      "Energy + ZCR Detector": 67.3
+    },
+    "Spectral Breath Detector": {
+      "Respiro-en": 78.5,
+      "Spectral Breath Detector": 100.0,
+      "Energy + ZCR Detector": 84.6
+    },
+    "Energy + ZCR Detector": {
+      "Respiro-en": 67.3,
+      "Spectral Breath Detector": 84.6,
+      "Energy + ZCR Detector": 100.0
+    }
+  },
+  "unanimous_breath_pct": 0.0,
+  "unanimous_nonbreath_pct": 65.2
+}
