@@ -1,8 +1,10 @@
 name: Run Analysis Job
 
-# Triggered only when jobs/latest.json is pushed — not on every commit.
+# Triggered only when jobs/latest.json is pushed on this branch.
 on:
   push:
+    branches:
+      - "claude/compare-vad-models-Q7R1A"
     paths:
       - "jobs/latest.json"
 
@@ -17,6 +19,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: claude/compare-vad-models-Q7R1A
           fetch-depth: 1
 
       # ── Python ────────────────────────────────────────────────────────
@@ -47,7 +50,7 @@ jobs:
         id: run_job
         run: python scripts/run_job.py
 
-      # ── Commit results back to main ───────────────────────────────────
+      # ── Commit results back to the working branch ────────────────────
       - name: Commit and push results
         run: |
           git config user.name  "github-actions[bot]"
@@ -55,4 +58,4 @@ jobs:
           git add docs/
           git diff --cached --quiet && echo "No changes to commit" && exit 0
           git commit -m "results: ${JOB_ID:-$(date +%Y%m%d-%H%M%S)}"
-          git push
+          git push origin claude/compare-vad-models-Q7R1A
