@@ -1,0 +1,40 @@
+{
+  "task": "pops",
+  "duration_s": 120.0,
+  "models": {
+    "Kurtosis Click Detector": {
+      "transient_pct": 1.5,
+      "clean_pct": 98.5,
+      "frame_ms": 10.0
+    },
+    "Spectral Flux Detector": {
+      "transient_pct": 8.4,
+      "clean_pct": 91.6,
+      "frame_ms": 10.0
+    },
+    "Sub-Bass Burst Detector": {
+      "transient_pct": 26.3,
+      "clean_pct": 73.7,
+      "frame_ms": 10.0
+    }
+  },
+  "agreement": {
+    "Kurtosis Click Detector": {
+      "Kurtosis Click Detector": 100.0,
+      "Spectral Flux Detector": 90.5,
+      "Sub-Bass Burst Detector": 73.1
+    },
+    "Spectral Flux Detector": {
+      "Kurtosis Click Detector": 90.5,
+      "Spectral Flux Detector": 100.0,
+      "Sub-Bass Burst Detector": 74.0
+    },
+    "Sub-Bass Burst Detector": {
+      "Kurtosis Click Detector": 73.1,
+      "Spectral Flux Detector": 74.0,
+      "Sub-Bass Burst Detector": 100.0
+    }
+  },
+  "unanimous_transient_pct": 0.1,
+  "unanimous_clean_pct": 68.7
+}
