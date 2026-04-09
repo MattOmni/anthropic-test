@@ -65,6 +65,26 @@ def run_vad(job: dict, audio_path: str, results_dir: Path) -> None:
     run(cmd)
 
 
+def write_status(job: dict, status: str, extra: dict | None = None) -> None:
+    """Write docs/status.json so the GitHub Pages index shows live progress."""
+    from datetime import datetime, timezone
+    payload = {
+        "job_id":       job["job_id"],
+        "task":         job["task"],
+        "file_url":     job.get("file_url", ""),
+        "submitted_at": job.get("submitted_at", ""),
+        "status":       status,
+        "updated_at":   datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    if extra:
+        payload.update(extra)
+    status_path = REPO_ROOT / "docs" / "status.json"
+    status_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(status_path, "w") as fh:
+        json.dump(payload, fh, indent=2)
+    print(f"status.json → {status}")
+
+
 def main() -> None:
     job = load_job()
     job_id      = job["job_id"]
@@ -75,6 +95,11 @@ def main() -> None:
     print(f"  Job: {job_id}  |  Task: {task}")
     print(f"  File: {file_url}")
     print(f"{'='*60}\n")
+
+    # Mark job as running immediately so the Pages index shows a live spinner
+    from datetime import datetime, timezone
+    write_status(job, "running",
+                 {"started_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
 
     # ── Determine output directory ────────────────────────────────────────
     out_dir = RESULTS_DIR / job_id
@@ -94,6 +119,9 @@ def main() -> None:
             run_vad(job, audio_path, out_dir)
         # add more tasks here (pdf, image, …)
 
+    except SystemExit:
+        write_status(job, "failed")
+        raise
     finally:
         if os.path.exists(audio_path):
             os.unlink(audio_path)
@@ -116,6 +144,9 @@ def main() -> None:
     # ── Rebuild the index page ────────────────────────────────────────────
     run([sys.executable, str(REPO_ROOT / "scripts" / "generate_report.py"),
          "--index", str(RESULTS_DIR)])
+
+    # Mark complete — JS on the index page will auto-reload when it sees this
+    write_status(job, "complete")
 
     # Export job_id for the git commit message in the workflow
     print(f"\n::set-output name=job_id::{job_id}")

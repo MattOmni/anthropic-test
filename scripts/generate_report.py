@@ -199,24 +199,83 @@ h1 { font-size: 1.4rem; margin-bottom: 6px; }
 .job:hover { box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .job-id   { font-weight: 600; font-size: 0.95rem; color: #1565c0; }
 .job-meta { font-size: 0.8rem; color: #757575; margin-top: 3px; word-break: break-all; }
-.empty { color: #9e9e9e; font-style: italic; padding: 24px 0; }
-footer { color: #9e9e9e; font-size: 0.75rem; margin-top: 24px; text-align: center; }
+.empty    { color: #9e9e9e; font-style: italic; padding: 24px 0; }
+footer    { color: #9e9e9e; font-size: 0.75rem; margin-top: 24px; text-align: center; }
+/* ── live status ── */
+#live-banner { display: none; border-radius: 8px; padding: 14px 16px;
+               margin-bottom: 16px; }
+#live-banner.queued  { background: #fff8e1; border-left: 4px solid #f9a825; }
+#live-banner.running { background: #e3f2fd; border-left: 4px solid #1565c0; }
+#live-banner.failed  { background: #ffebee; border-left: 4px solid #c62828; }
+.banner-row  { display: flex; align-items: center; gap: 10px; }
+.banner-title{ font-weight: 600; font-size: 0.95rem; }
+.banner-meta { font-size: 0.8rem; color: #555; margin-top: 4px; word-break: break-all; }
+.badge { font-size: 0.7rem; font-weight: 700; padding: 2px 7px;
+         border-radius: 12px; text-transform: uppercase; white-space: nowrap; }
+.badge-queued  { background: #fff3e0; color: #e65100; }
+.badge-running { background: #e3f2fd; color: #1565c0; }
+.badge-failed  { background: #ffebee; color: #c62828; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 16px; height: 16px; flex-shrink: 0;
+           border: 2px solid #90caf9; border-top-color: #1565c0;
+           border-radius: 50%; animation: spin 0.9s linear infinite; }
+"""
+
+_INDEX_JS = """
+(function () {
+  var POLL_MS = 10000;
+  var banner  = document.getElementById('live-banner');
+  var titleEl = document.getElementById('live-title');
+  var metaEl  = document.getElementById('live-meta');
+  var badgeEl = document.getElementById('live-badge');
+  var spinEl  = document.getElementById('live-spinner');
+
+  function poll() {
+    fetch('status.json?t=' + Date.now())
+      .then(function(r) { return r.json(); })
+      .then(function(s) {
+        var st = s.status || 'unknown';
+        if (st === 'complete') {
+          // Results are ready — reload to get updated job list
+          location.reload();
+          return;
+        }
+        // Show banner for queued / running / failed
+        var task    = (s.task    || 'analysis').toUpperCase();
+        var job_id  = s.job_id  || '';
+        var url     = s.file_url || '';
+        var started = s.started_at ? s.started_at.replace('T',' ').slice(0,19) + ' UTC' : '';
+        titleEl.textContent = task + ' · ' + job_id;
+        metaEl.textContent  = (started ? started + '  ' : '') + url.slice(0, 80) + (url.length > 80 ? '…' : '');
+        badgeEl.textContent = st;
+        badgeEl.className   = 'badge badge-' + st;
+        spinEl.style.display = (st === 'running') ? 'inline-block' : 'none';
+        banner.className    = st;
+        banner.style.display = 'block';
+        if (st !== 'failed') setTimeout(poll, POLL_MS);
+      })
+      .catch(function() { setTimeout(poll, POLL_MS * 1.5); });
+  }
+
+  poll();
+})();
 """
 
 
 def build_index_page(results_root: Path) -> str:
     jobs = []
-    for d in sorted(results_root.iterdir(), reverse=True):
-        if not d.is_dir():
-            continue
-        meta_path = d / "meta.json"
-        if not meta_path.exists():
-            continue
-        try:
-            meta = _read_json(str(meta_path))
-        except Exception:
-            continue
-        jobs.append(meta)
+    if results_root.exists():
+        for d in sorted(results_root.iterdir(), reverse=True):
+            if not d.is_dir():
+                continue
+            meta_path = d / "meta.json"
+            if not meta_path.exists():
+                continue
+            try:
+                meta = _read_json(str(meta_path))
+            except Exception:
+                continue
+            jobs.append(meta)
 
     job_cards = ""
     for m in jobs:
@@ -224,9 +283,8 @@ def build_index_page(results_root: Path) -> str:
         task     = m.get("task",          "—")
         file_url = m.get("file_url",      "")
         sub_at   = m.get("submitted_at",  "")
-        status   = m.get("status",        "")
-        label = f"{task.upper()} · {jid}"
-        ts    = sub_at[:19].replace("T", " ") if sub_at else ""
+        label    = f"{task.upper()} · {jid}"
+        ts       = sub_at[:19].replace("T", " ") if sub_at else ""
         short_url = (file_url[:80] + "…") if len(file_url) > 80 else file_url
         job_cards += (
             f'<a class="job" href="results/{jid}/">'
@@ -236,7 +294,7 @@ def build_index_page(results_root: Path) -> str:
         )
 
     if not job_cards:
-        job_cards = '<p class="empty">No results yet. Submit a job via Claude Code.</p>'
+        job_cards = '<p class="empty">No completed results yet.</p>'
 
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     html = f"""<!DOCTYPE html>
@@ -250,8 +308,18 @@ def build_index_page(results_root: Path) -> str:
 <body>
 <h1>Analysis Results</h1>
 <p class="tagline">MattOmni/anthropic-test · Updated {now}</p>
+<!-- live status banner (shown/hidden by JS) -->
+<div id="live-banner">
+  <div class="banner-row">
+    <span class="spinner" id="live-spinner"></span>
+    <span class="banner-title" id="live-title"></span>
+    <span class="badge" id="live-badge"></span>
+  </div>
+  <div class="banner-meta" id="live-meta"></div>
+</div>
 {job_cards}
 <footer>Powered by Claude Code + GitHub Actions</footer>
+<script>{_INDEX_JS}</script>
 </body>
 </html>"""
     return html
