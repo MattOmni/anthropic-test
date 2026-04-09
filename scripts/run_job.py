@@ -29,7 +29,7 @@ REPO_ROOT   = Path(__file__).resolve().parent.parent
 JOBS_FILE   = REPO_ROOT / "jobs" / "latest.json"
 RESULTS_DIR = REPO_ROOT / "docs" / "results"
 
-SUPPORTED_TASKS = {"vad"}
+SUPPORTED_TASKS = {"vad", "breath"}
 
 
 def load_job() -> dict:
@@ -57,6 +57,17 @@ def run(cmd: list[str], **kwargs) -> None:
 def run_vad(job: dict, audio_path: str, results_dir: Path) -> None:
     cmd = [
         sys.executable, str(REPO_ROOT / "compare_vad.py"),
+        audio_path,
+        "--results-dir", str(results_dir),
+    ]
+    if job.get("max_duration"):
+        cmd += ["--max-duration", str(job["max_duration"])]
+    run(cmd)
+
+
+def run_breath(job: dict, audio_path: str, results_dir: Path) -> None:
+    cmd = [
+        sys.executable, str(REPO_ROOT / "compare_breath.py"),
         audio_path,
         "--results-dir", str(results_dir),
     ]
@@ -117,7 +128,8 @@ def main() -> None:
         # ── Dispatch to task runner ───────────────────────────────────────
         if task == "vad":
             run_vad(job, audio_path, out_dir)
-        # add more tasks here (pdf, image, …)
+        elif task == "breath":
+            run_breath(job, audio_path, out_dir)
 
     except SystemExit:
         write_status(job, "failed")

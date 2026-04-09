@@ -123,16 +123,25 @@ def build_result_page(results_dir: Path) -> str:
     if chart_path.exists():
         chart_tag = f'<img class="chart" src="{_b64_img(str(chart_path))}" alt="VAD Comparison Chart">'
 
+    # Task-specific labels (vad vs breath)
+    is_breath = stats.get("task") == "breath"
+    col1_label = "Breath"    if is_breath else "Speech"
+    col2_label = "Non-Breath" if is_breath else "Silence"
+    col1_key   = "breath_pct"    if is_breath else "speech_pct"
+    col2_key   = "nonbreath_pct" if is_breath else "silence_pct"
+    col1_css   = "speech"  # reuse green for first column
+    col2_css   = "silence"
+
     # Stats table rows
     model_rows = ""
     for name, m in models.items():
-        sp = float(m.get("speech_pct",  0))
-        si = float(m.get("silence_pct", 0))
+        sp = float(m.get(col1_key, 0))
+        si = float(m.get(col2_key, 0))
         fr = m.get("frame_ms", 0)
         model_rows += (
             f"<tr><td>{name}</td>"
-            f'<td class="speech">{_fmt_pct(sp)}</td>'
-            f'<td class="silence">{_fmt_pct(si)}</td>'
+            f'<td class="{col1_css}">{_fmt_pct(sp)}</td>'
+            f'<td class="{col2_css}">{_fmt_pct(si)}</td>'
             f"<td>{fr} ms</td></tr>\n"
         )
 
@@ -150,20 +159,29 @@ def build_result_page(results_dir: Path) -> str:
                 cells += f'<td class="{css}">{_fmt_pct(val)}</td>'
             agree_rows += f"<tr><td>{ni}</td>{cells}</tr>\n"
 
-    unan_speech  = stats.get("unanimous_speech_pct",  "—")
-    unan_silence = stats.get("unanimous_silence_pct", "—")
+    unan_speech  = stats.get("unanimous_breath_pct",    stats.get("unanimous_speech_pct",  "—"))
+    unan_silence = stats.get("unanimous_nonbreath_pct", stats.get("unanimous_silence_pct", "—"))
+
+    page_title   = "Breathing Detector" if is_breath else "VAD"
+    table_header = (
+        f"<tr><th>Detector</th><th>{col1_label}</th><th>{col2_label}</th><th>Frame</th></tr>"
+        if is_breath else
+        f"<tr><th>Model</th><th>{col1_label}</th><th>{col2_label}</th><th>Frame</th></tr>"
+    )
+    unan_label1 = "breath"    if is_breath else "speech"
+    unan_label2 = "non-breath" if is_breath else "silence"
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VAD Results – {job_id}</title>
+<title>{page_title} Results – {job_id}</title>
 <style>{_RESULT_CSS}</style>
 </head>
 <body>
 <a class="back" href="../">All results</a>
-<h1>VAD Comparison</h1>
+<h1>{page_title} Comparison</h1>
 <p class="subtitle">
   Job <strong>{job_id}</strong> &nbsp;·&nbsp; {task.upper()}
   &nbsp;·&nbsp; {round(duration, 1)} s
@@ -173,15 +191,15 @@ def build_result_page(results_dir: Path) -> str:
 {"<div class='card'>" + chart_tag + "</div>" if chart_tag else ""}
 
 <div class="card">
-  <h2>Speech / Silence per Model</h2>
+  <h2>{col1_label} / {col2_label} per {'Detector' if is_breath else 'Model'}</h2>
   <table>
-    <tr><th>Model</th><th>Speech</th><th>Silence</th><th>Frame</th></tr>
+    {table_header}
     {model_rows or "<tr><td colspan='4'>No data</td></tr>"}
   </table>
 </div>
 
 {"<div class='card'><h2>Pairwise Agreement</h2><table>" + agree_rows + "</table>" +
- f"<p style='margin-top:10px;font-size:.85rem'>All agree – speech: <strong>{_fmt_pct(unan_speech)}</strong> &nbsp; silence: <strong>{_fmt_pct(unan_silence)}</strong></p>" +
+ f"<p style='margin-top:10px;font-size:.85rem'>All agree – {unan_label1}: <strong>{_fmt_pct(unan_speech)}</strong> &nbsp; {unan_label2}: <strong>{_fmt_pct(unan_silence)}</strong></p>" +
  "</div>" if names else ""}
 
 <footer>

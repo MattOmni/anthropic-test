@@ -48,6 +48,13 @@ jobs:
           pip install -r requirements.txt
           # ten-vad must be installed from GitHub (not PyPI)
           pip install -U git+https://github.com/TEN-framework/ten-vad.git
+          # intervaltree is required by Respiro-en
+          pip install intervaltree
+
+      # ── Respiro-en model (for breath task) ───────────────────────────
+      - name: Clone Respiro-en model
+        run: |
+          git clone --depth=1 https://github.com/ydqmkkx/Respiro-en models/respiro-en
 
       # ── Run the job ───────────────────────────────────────────────────
       - name: Run analysis
